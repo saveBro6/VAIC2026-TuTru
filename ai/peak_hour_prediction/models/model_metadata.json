@@ -1,0 +1,21 @@
+{
+  "features": [
+    "slot_index",
+    "hour",
+    "minute",
+    "day_of_week",
+    "day_of_month",
+    "month",
+    "week_of_year",
+    "is_weekend",
+    "is_monday",
+    "lag_1_day",
+    "lag_7_days",
+    "rolling_mean_same_slot_3_days",
+    "rolling_std_same_slot_3_days"
+  ],
+  "target": "checkin_count",
+  "slot_minutes": 30,
+  "peak_quantile": 0.8,
+  "peak_threshold": 47.0
+}
