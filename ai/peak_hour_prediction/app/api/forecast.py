@@ -24,7 +24,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DATA_PATH = (
     PROJECT_ROOT
     / "data"
-    / "checkin_slots.csv"
+    / "checkin_slots_12_months_2025_07_to_2026_06.csv"
 )
 
 
