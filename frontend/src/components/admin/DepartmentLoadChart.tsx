@@ -1,0 +1,3 @@
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+const data = [{ name: 'Nội', patients: 42 }, { name: 'Ngoại', patients: 28 }, { name: 'Nhi', patients: 35 }, { name: 'Sản', patients: 22 }, { name: 'XN', patients: 31 }]
+export function DepartmentLoadChart() { return <div className="card h-[330px]"><h2 className="section-title mb-5">Bệnh nhân theo khoa</h2><ResponsiveContainer width="100%" height="83%"><BarChart data={data}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="name"/><YAxis/><Tooltip/><Bar dataKey="patients" name="Bệnh nhân" fill="#0f766e" radius={[6,6,0,0]}/></BarChart></ResponsiveContainer></div> }

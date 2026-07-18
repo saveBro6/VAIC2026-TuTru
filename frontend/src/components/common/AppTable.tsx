@@ -1,0 +1,4 @@
+import type { ReactNode } from 'react'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table'
+export interface TableColumn<T> { key: string; header: string; render: (row: T) => ReactNode }
+export function AppTable<T>({ columns, data, rowKey, onRowClick }: { columns: TableColumn<T>[]; data: T[]; rowKey: (row: T) => string; onRowClick?: (row: T) => void }) { return <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm"><Table className="min-w-[760px]"><TableHeader><TableRow>{columns.map((column) => <TableHead key={column.key}>{column.header}</TableHead>)}</TableRow></TableHeader><TableBody>{data.map((row) => <TableRow key={rowKey(row)} onClick={() => onRowClick?.(row)} className={onRowClick ? 'cursor-pointer' : ''}>{columns.map((column) => <TableCell key={column.key}>{column.render(row)}</TableCell>)}</TableRow>)}</TableBody></Table></div> }

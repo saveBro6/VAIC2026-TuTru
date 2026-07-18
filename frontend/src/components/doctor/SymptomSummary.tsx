@@ -1,0 +1,2 @@
+import { Activity } from 'lucide-react'
+export function SymptomSummary({ symptom }: { symptom: string }) { return <div className="card"><h2 className="section-title"><Activity/>Triệu chứng & triage</h2><p className="mt-4 text-slate-700">{symptom}. Khởi phát từ hôm qua, mức độ đau 5/10.</p><div className="mt-3 rounded-xl bg-orange-50 p-3 text-sm text-orange-800"><strong>Đánh giá triage:</strong> Cần thăm khám trong vòng 30 phút.</div></div> }

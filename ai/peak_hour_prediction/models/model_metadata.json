@@ -1,4 +1,5 @@
 {
+  "algorithm": "RandomForestRegressor",
   "features": [
     "slot_index",
     "hour",
@@ -17,5 +18,44 @@
   "target": "checkin_count",
   "slot_minutes": 30,
   "peak_quantile": 0.8,
-  "peak_threshold": 47.0
+  "peak_threshold": 45.0,
+  "training_data": "data/checkin_slots_12_months_2025_07_to_2026_06.csv",
+  "training_rows": 7160,
+  "date_range": [
+    "2025-07-01",
+    "2026-06-30"
+  ],
+  "validation": {
+    "strategy": "last_30_days_holdout",
+    "start_date": "2026-06-01",
+    "rows": 600,
+    "mae": 4.2881,
+    "rmse": 6.1551,
+    "r2": 0.918,
+    "peak_precision": 0.9118,
+    "peak_recall": 0.75,
+    "peak_f1": 0.823
+  },
+  "model_params": {
+    "bootstrap": true,
+    "ccp_alpha": 0.0,
+    "criterion": "squared_error",
+    "max_depth": 12,
+    "max_features": 1.0,
+    "max_leaf_nodes": null,
+    "max_samples": null,
+    "min_impurity_decrease": 0.0,
+    "min_samples_leaf": 2,
+    "min_samples_split": 2,
+    "min_weight_fraction_leaf": 0.0,
+    "monotonic_cst": null,
+    "n_estimators": 180,
+    "n_jobs": 1,
+    "oob_score": false,
+    "random_state": 42,
+    "verbose": 0,
+    "warm_start": false
+  },
+  "scikit_learn_version": "1.5.2",
+  "trained_at": "2026-07-18T00:38:13.657480+00:00"
 }

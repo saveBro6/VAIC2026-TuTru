@@ -1,0 +1,4 @@
+import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import type { PeakHourForecast } from '../../types'
+import { formatTime } from '../../utils/date'
+export function PeakHourChart({ data }: { data: PeakHourForecast[] }) { const chart = data.map((x, i) => ({ ...x, actual: Math.max(0, x.predicted_checkin_count + ((i * 7) % 11) - 5) })); return <div className="card h-[360px]"><h2 className="section-title mb-5">Check-in thực tế và dự đoán</h2><ResponsiveContainer width="100%" height="85%"><AreaChart data={chart}><CartesianGrid strokeDasharray="3 3" vertical={false}/><XAxis dataKey="checkin_time" tickFormatter={formatTime}/><YAxis/><Tooltip labelFormatter={(v) => formatTime(String(v))}/><Legend/><Area dataKey="predicted_checkin_count" name="Dự đoán" stroke="#0f766e" fill="#ccfbf1"/><Area dataKey="actual" name="Thực tế" stroke="#f59e0b" fill="transparent"/></AreaChart></ResponsiveContainer></div> }

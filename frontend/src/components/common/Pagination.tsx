@@ -1,0 +1,6 @@
+import { ChevronLeft, ChevronRight } from 'lucide-react'
+
+export function Pagination({ page, totalPages, totalItems, onChange }: { page: number; totalPages: number; totalItems: number; onChange: (page: number) => void }) {
+  if (totalPages <= 1) return <p className="mt-4 text-sm text-slate-500">Tổng cộng {totalItems} bản ghi</p>
+  return <div className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row"><p className="text-sm text-slate-500">Tổng cộng {totalItems} bản ghi · Trang {page}/{totalPages}</p><div className="flex items-center gap-1"><button aria-label="Trang trước" disabled={page === 1} onClick={() => onChange(page - 1)} className="rounded-lg border border-slate-200 p-2 disabled:opacity-40"><ChevronLeft size={18}/></button>{Array.from({ length: totalPages }, (_, i) => i + 1).map((item) => <button key={item} onClick={() => onChange(item)} className={`h-9 min-w-9 rounded-lg px-2 text-sm font-bold ${item === page ? 'bg-teal-700 text-white' : 'border border-slate-200 bg-white'}`}>{item}</button>)}<button aria-label="Trang sau" disabled={page === totalPages} onClick={() => onChange(page + 1)} className="rounded-lg border border-slate-200 p-2 disabled:opacity-40"><ChevronRight size={18}/></button></div></div>
+}

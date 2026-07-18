@@ -1,0 +1,3 @@
+import { AlertTriangle, RefreshCw } from 'lucide-react'
+import { AppButton } from './AppButton'
+export function ErrorState({ retry }: { retry?: () => void }) { return <div className="rounded-2xl border border-red-200 bg-red-50/70 p-10 text-center text-red-900"><span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-red-100"><AlertTriangle/></span><h3 className="mt-4 text-lg font-bold">Không thể tải dữ liệu</h3><p className="mb-5 mt-1 text-sm text-red-700">Kết nối tạm thời gián đoạn. Dữ liệu của bạn vẫn an toàn.</p>{retry && <AppButton variant="danger" onClick={retry}><RefreshCw/>Thử lại</AppButton>}</div> }
