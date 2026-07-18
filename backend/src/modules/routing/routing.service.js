@@ -1,3 +1,6 @@
+const crypto = require('node:crypto');
+
+const envConfig = require('../../config/env');
 const prisma = require('../../lib/prisma');
 
 // Clinical severity score mapping
@@ -15,6 +18,202 @@ const PRIORITY_ORDER = {
   NORMAL: 2,
   NON_URGENT: 3,
 };
+
+const VALID_PRIORITIES = new Set(['EMERGENCY', 'URGENT', 'NORMAL', 'NON_URGENT']);
+const AI_OPTIMIZE_SEQUENCE_PATH = '/api/v1/routing/optimize-sequence';
+const AI_REQUEST_TIMEOUT_MS = 15000;
+
+function buildAiUrl(path) {
+  return new globalThis.URL(path, envConfig.aiServiceUrl).toString();
+}
+
+function compactToken(value) {
+  return String(value || '')
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+}
+
+function shortId() {
+  return crypto.randomBytes(5).toString('hex');
+}
+
+function toClinicalPriority(priority) {
+  if (priority === 'HIGH') return 'URGENT';
+  return VALID_PRIORITIES.has(priority) ? priority : 'NORMAL';
+}
+
+async function findOrCreatePatient({ patientToken, identificationCode, fullName }) {
+  const existingByIdentification = identificationCode
+    ? await prisma.patient.findUnique({ where: { identificationCode } })
+    : null;
+  const existingPatient =
+    existingByIdentification ||
+    (patientToken ? await prisma.patient.findUnique({ where: { patientToken } }) : null);
+
+  if (existingPatient) {
+    return prisma.patient.update({
+      where: { patientToken: existingPatient.patientToken },
+      data: {
+        fullName: fullName || existingPatient.fullName,
+        status: 'ACTIVE',
+      },
+    });
+  }
+
+  return prisma.patient.create({
+    data: {
+      identificationCode: identificationCode || `AUTO-${patientToken}`,
+      patientToken,
+      fullName: fullName || null,
+      status: 'ACTIVE',
+    },
+  });
+}
+
+async function findDepartmentTarget(departmentCode) {
+  const department = await prisma.department.findFirst({
+    where: {
+      isActive: true,
+      OR: [{ id: departmentCode }, { code: departmentCode }],
+    },
+    include: {
+      specialties: {
+        where: { isActive: true },
+        include: {
+          rooms: {
+            where: { isActive: true },
+            include: {
+              queues: { where: { isActive: true } },
+              doctor: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!department) {
+    const error = new Error(`Department not found or inactive: ${departmentCode}`);
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const rooms = department.specialties.flatMap((specialty) =>
+    specialty.rooms.map((room) => ({ ...room, specialty })),
+  );
+  const room = rooms
+    .slice()
+    .sort(
+      (left, right) =>
+        (left.queues[0]?.estimatedWaitMinutes ?? 0) - (right.queues[0]?.estimatedWaitMinutes ?? 0),
+    )[0];
+  const specialty = room?.specialty || department.specialties[0] || null;
+
+  return { department, specialty, room: room || null };
+}
+
+async function ensureConsultQueue({ department, room }) {
+  const existingQueue = room
+    ? await prisma.serviceQueue.findFirst({
+      where: { roomId: room.id, serviceType: 'CLINICAL_CONSULT', isActive: true },
+    })
+    : null;
+
+  if (existingQueue) return existingQueue;
+
+  const queueId = room
+    ? `QUEUE-${room.id}-CLINICAL_CONSULT`
+    : `QUEUE-${department.id}-CLINICAL_CONSULT`;
+
+  return prisma.serviceQueue.upsert({
+    where: { id: queueId },
+    create: {
+      id: queueId,
+      name: room ? `Hàng đợi ${room.name}` : `Hàng đợi ${department.name}`,
+      roomId: room?.id || null,
+      serviceType: 'CLINICAL_CONSULT',
+      isActive: true,
+      estimatedWaitMinutes: 0,
+    },
+    update: {
+      name: room ? `Hàng đợi ${room.name}` : `Hàng đợi ${department.name}`,
+      roomId: room?.id || null,
+      serviceType: 'CLINICAL_CONSULT',
+      isActive: true,
+    },
+  });
+}
+
+async function nextQueueNumber(queueId) {
+  const aggregate = await prisma.patientQueueEntry.aggregate({
+    where: { queueId },
+    _max: { queueNumber: true },
+  });
+
+  return (aggregate._max.queueNumber || 0) + 1;
+}
+
+async function applyOptimizationSequence(sequence) {
+  console.log(sequence)
+  await Promise.all(
+    sequence.map((item) =>
+      prisma.patientJourneyTask.update({
+        where: { id: item.task_id },
+        data: { sequenceOrder: item.sequence_order },
+      })
+    )
+  );
+}
+
+async function optimizeSequenceWithAi({ clinicSpecialities, patientToken }) {
+  const controller = new globalThis.AbortController();
+  const timeout = globalThis.setTimeout(() => controller.abort(), AI_REQUEST_TIMEOUT_MS);
+
+  try {
+    const response = await globalThis.fetch(buildAiUrl(AI_OPTIMIZE_SEQUENCE_PATH), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({
+        clinic_specialities: clinicSpecialities,
+        patient_token: patientToken,
+      }),
+      signal: controller.signal,
+    });
+    const contentType = response.headers.get('content-type') || '';
+    const data = contentType.includes('application/json')
+      ? await response.json()
+      : { detail: await response.text() };
+
+    if (!response.ok) {
+      const error = new Error(data.detail || 'AI optimize-sequence request failed');
+      error.statusCode = response.status;
+      throw error;
+    }
+
+    await applyOptimizationSequence(data.optimal_sequence || []);
+    return data;
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      const timeoutError = new Error('AI optimize-sequence request timed out');
+      timeoutError.statusCode = 504;
+      throw timeoutError;
+    }
+
+    if (error.statusCode) throw error;
+    const unavailableError = new Error(
+      `Unable to reach AI optimize-sequence service: ${error.message}`
+    );
+    unavailableError.statusCode = 502;
+    throw unavailableError;
+  } finally {
+    globalThis.clearTimeout(timeout);
+  }
+}
 
 /**
  * Generates all permutations of an array.
@@ -273,6 +472,100 @@ async function optimizeServiceSequence(journeyId, patientToken) {
   };
 }
 
+async function createJourneyAndOptimize(payload) {
+  const departmentCode = payload.department_code || payload.departmentCode;
+  const identificationCode = payload.identification_code || payload.identificationCode || null;
+  const generatedTokenSource = identificationCode || shortId();
+  const patientToken =
+    payload.patient_token || payload.patientToken || `PT-${compactToken(generatedTokenSource)}`;
+  const fullName = payload.patient_name || payload.patientName || null;
+  const clinicalPriority = toClinicalPriority(payload.priority);
+  const now = new Date();
+
+  const patient = await findOrCreatePatient({
+    patientToken,
+    identificationCode,
+    fullName,
+  });
+  const { department, specialty, room } = await findDepartmentTarget(departmentCode);
+  if (!specialty) {
+    const error = new Error(`No active clinical specialty found for department: ${departmentCode}`);
+    error.statusCode = 422;
+    throw error;
+  }
+  const queue = await ensureConsultQueue({ department, room });
+  const queueNumber = await nextQueueNumber(queue.id);
+  const journeyId = `J-${Date.now()}-${shortId()}`;
+  const taskId = `T-${Date.now()}-${shortId()}`;
+
+  await prisma.patientJourney.create({
+    data: {
+      id: journeyId,
+      patientToken: patient.patientToken,
+      checkinAt: now,
+      severityScore: SEVERITY_SCORES[clinicalPriority] || SEVERITY_SCORES.NORMAL,
+    },
+  });
+
+  await prisma.patientJourneyTask.create({
+    data: {
+      id: taskId,
+      journeyId,
+      journeyStep: 'INITIAL_CONSULT',
+      patientToken: patient.patientToken,
+      departmentId: department.id,
+      specialtyId: specialty?.id || null,
+      queueId: queue.id,
+      roomId: room?.id || null,
+      taskType: 'INITIAL_CONSULT',
+      status: 'READY',
+      serviceType: 'CLINICAL_CONSULT',
+      clinicalPriority,
+      readinessStatus: 'COMPLETED',
+      schedulingMode: 'FAIR_QUEUE',
+      doctorId: room?.doctorId || null,
+      assignedAt: now,
+      arrivalTime: now,
+      readyAt: now,
+      sequenceOrder: 1,
+      queueLength: Math.max(queueNumber - 1, 0),
+      resourceStatus: 'AVAILABLE',
+      caseComplexity: 'NORMAL',
+    },
+  });
+
+  await prisma.patientQueueEntry.create({
+    data: {
+      queueId: queue.id,
+      taskId,
+      status: 'WAITING',
+      priority: clinicalPriority,
+      queueNumber,
+      position: queueNumber,
+      enqueuedAt: now,
+    },
+  });
+
+  const optimization = await optimizeSequenceWithAi({
+    clinicSpecialities: [specialty.id],
+    patientToken: patient.patientToken,
+  });
+
+  return {
+    ...optimization,
+    journey_id: journeyId,
+    visit_id: journeyId,
+    patient_token: patient.patientToken,
+    queue_number: `A${String(queueNumber).padStart(3, '0')}`,
+    department_code: department.code || department.id,
+    department_name: department.name,
+    room_id: room?.id || null,
+    room_name: room?.name || queue.name,
+  };
+}
+
 module.exports = {
   optimizeServiceSequence,
+  optimizeSequenceWithAi,
+  createJourneyAndOptimize,
 };

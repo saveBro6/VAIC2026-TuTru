@@ -46,6 +46,7 @@ const toAIRecommendation = (response: SymptomRoutingResponse): AIRecommendation 
 
   return {
     department: topRecommendation.department_name,
+    departmentCode: topRecommendation.department_code,
     room: topRecommendation.clinic_room,
     floor: routingRecommendation.floor,
     estimatedWait: routingRecommendation.estimatedWait,
@@ -57,6 +58,7 @@ const toAIRecommendation = (response: SymptomRoutingResponse): AIRecommendation 
     isRedFlag: response.is_red_flag,
     alternatives: response.recommendations.slice(1).map((item) => ({
       department: item.department_name,
+      departmentCode: item.department_code,
       room: item.clinic_room,
       confidence: item.confidence,
     })),
