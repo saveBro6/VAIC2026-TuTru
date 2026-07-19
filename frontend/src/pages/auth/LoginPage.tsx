@@ -1,7 +1,7 @@
 import { ArrowLeft, Hospital, ShieldCheck, Stethoscope, UserRound } from "lucide-react";
 import type { FormEvent } from "react";
 import { useState } from "react";
-import { Link, Navigate } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 import loginBackground from "../../assets/backgrounds/hospital-login.png";
 import { useAuth } from "../../hooks/useAuth";
 import { getRoleLandingPath } from "../../utils/roleLanding";
@@ -178,12 +178,6 @@ function PatientLoginForm({
           <Stethoscope size={18} />
           Đăng nhập nhân viên
         </button>
-        <div className="flex items-center justify-between">
-          <span className="text-slate-500">Máy check-in tại cửa phòng?</span>
-          <Link to="/kiosk" className="font-bold text-[#176b9b] hover:underline">
-            Mở chế độ kiosk
-          </Link>
-        </div>
       </div>
     </>
   );

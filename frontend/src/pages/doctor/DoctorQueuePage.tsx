@@ -49,8 +49,8 @@ export function DoctorQueuePage() {
         <div className="mb-3 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
           <h2 className="text-xl font-extrabold text-slate-950">Hàng đợi của phòng</h2>
           <label className="relative w-full sm:w-80">
-            <Search className="absolute left-3 top-3 text-slate-400" size={18}/>
-            <input value={search} onChange={(e) => setSearch(e.target.value)} className="form-control h-11 pl-10" placeholder="Tìm số, tên, triệu chứng..."/>
+            <Search className="pointer-events-none absolute left-4 top-3 text-slate-400" size={18}/>
+            <input value={search} onChange={(e) => setSearch(e.target.value)} className="form-control h-11 pl-12 pr-5" placeholder="Tìm số, tên, triệu chứng..."/>
           </label>
         </div>
         {query.isLoading ? <LoadingSkeleton/> : <DoctorQueueTable items={filtered}/>}
