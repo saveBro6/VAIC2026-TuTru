@@ -76,6 +76,25 @@ def create_forecast(
         )
 
         metadata = container.metadata
+        latest_history_date = history["checkin_time"].dt.date.max()
+        forecast_days = payload.days
+        forecast_date = payload.date
+
+        if forecast_date is not None:
+            forecast_days = (forecast_date - latest_history_date).days
+            if forecast_days < 1:
+                raise HTTPException(
+                    status_code=422,
+                    detail=(
+                        "date must be after the latest history date "
+                        f"({latest_history_date.isoformat()})"
+                    ),
+                )
+            if forecast_days > 7:
+                raise HTTPException(
+                    status_code=422,
+                    detail="date must be within 7 days after the latest history date",
+                )
 
         result = forecast_multiple_days(
             history=history,
@@ -84,8 +103,14 @@ def create_forecast(
             peak_threshold=float(
                 metadata["peak_threshold"]
             ),
-            days=payload.days,
+            days=forecast_days,
         )
+
+        if forecast_date is not None:
+            result = result[
+                result["checkin_time"].dt.date
+                == forecast_date
+            ]
 
         forecasts = []
 
@@ -115,7 +140,8 @@ def create_forecast(
             )
 
         return ForecastResponse(
-            forecast_days=payload.days,
+            forecast_days=1 if forecast_date is not None else forecast_days,
+            forecast_date=forecast_date,
             peak_threshold=float(
                 metadata["peak_threshold"]
             ),

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date as Date
 from datetime import datetime
 
 from pydantic import BaseModel, Field
@@ -11,6 +12,10 @@ class ForecastRequest(BaseModel):
         ge=1,
         le=7,
         description="Số ngày cần dự báo",
+    )
+    date: Date | None = Field(
+        default=None,
+        description="Forecast date. When provided, only this day is returned.",
     )
 
 
@@ -24,5 +29,6 @@ class ForecastItem(BaseModel):
 
 class ForecastResponse(BaseModel):
     forecast_days: int
+    forecast_date: Date | None = None
     peak_threshold: float
     forecasts: list[ForecastItem]

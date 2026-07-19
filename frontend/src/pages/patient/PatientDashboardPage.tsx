@@ -52,7 +52,6 @@ export function PatientDashboardPage() {
     (best, item) => !best || item.predicted_checkin_count > best.predicted_checkin_count ? item : best,
     null,
   )
-  const peakSlots = selectedForecasts.filter((item) => item.is_peak)
   const capacity = busiestSlot ? Math.min(100, Math.round((busiestSlot.predicted_checkin_count / Math.max(peakQuery.data?.peak_threshold ?? 45, 1)) * 70)) : 0
 
   return <>
@@ -110,9 +109,9 @@ export function PatientDashboardPage() {
       </div>
 
       <div className="card">
-        <h2 className="section-title"><CalendarDays/>Các khung cao điểm trong ngày</h2>
+        <h2 className="section-title"><CalendarDays/>Các khung giờ trong ngày</h2>
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {(peakSlots.length ? peakSlots : selectedForecasts.slice(0, 6)).map((slot) => <div key={`${slot.checkin_time}-${slot.slot_index}`} className="rounded-xl border border-slate-200 bg-white p-4">
+          {selectedForecasts.map((slot) => <div key={`${slot.checkin_time}-${slot.slot_index}`} className="rounded-xl border border-slate-200 bg-white p-4">
             <div className="flex items-center justify-between gap-3">
               <span className="font-black text-slate-950">{formatHour(slot.checkin_time)}</span>
               <span className={`rounded-full border px-2.5 py-1 text-xs font-bold ${levelStyles[slot.peak_level]}`}>{levelLabels[slot.peak_level]}</span>

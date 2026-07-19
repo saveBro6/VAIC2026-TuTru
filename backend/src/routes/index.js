@@ -1,6 +1,7 @@
 const express = require('express');
 const authRoutes = require('../modules/auth/auth.routes');
 const doctorRoutes = require('../modules/doctor/doctor.routes');
+const forecastRoutes = require('../modules/forecast/forecast.routes');
 const healthRoutes = require('../modules/health/health.routes');
 const routingRoutes = require('../modules/routing/routing.routes');
 const symptomRoutingRoutes = require('../modules/symptom-routing/symptom-routing.routes');
@@ -10,6 +11,7 @@ const router = express.Router();
 
 router.use('/auth', authRoutes);
 router.use('/doctor', doctorRoutes);
+router.use('/forecasts', forecastRoutes);
 router.use('/health', healthRoutes);
 router.use('/routing', routingRoutes);
 router.use('/symptom-routing', symptomRoutingRoutes);
