@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import loginBackground from "../../assets/backgrounds/hospital-login.png";
 import { useAuth } from "../../hooks/useAuth";
+import { getRoleLandingPath } from "../../utils/roleLanding";
 
 type LoginMode = "patient" | "staff";
 
@@ -18,7 +19,7 @@ export function LoginPage() {
   const pending = login.isPending || staffLogin.isPending;
 
   if (isAuthenticated && user) {
-    return <Navigate to={`/${user.role.toLowerCase()}`} replace />;
+    return <Navigate to={getRoleLandingPath(user.role)} replace />;
   }
 
   const submitPatient = (event: FormEvent) => {

@@ -2,6 +2,7 @@ import { useMutation } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { authApi } from '../api/authApi'
 import { useAuthStore } from '../stores/authStore'
+import { getRoleLandingPath } from '../utils/roleLanding'
 
 export const useAuth = () => {
   const navigate = useNavigate()
@@ -10,7 +11,7 @@ export const useAuth = () => {
     mutationFn: ({ cccd }: { cccd: string }) => authApi.login(cccd),
     onSuccess: ({ access_token, user: nextUser }) => {
       setAuth(access_token, nextUser)
-      navigate(`/${nextUser.role.toLowerCase()}`)
+      navigate(getRoleLandingPath(nextUser.role))
     },
   })
   const staffLogin = useMutation({
@@ -18,7 +19,7 @@ export const useAuth = () => {
       authApi.staffLogin(userName, password),
     onSuccess: ({ access_token, user: nextUser }) => {
       setAuth(access_token, nextUser)
-      navigate(`/${nextUser.role.toLowerCase()}`)
+      navigate(getRoleLandingPath(nextUser.role))
     },
   })
   const logout = () => {

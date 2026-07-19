@@ -1,16 +1,19 @@
 import type { AIRecommendation, Doctor, Notification, PatientPathway, PatientVisit, PeakHourForecast, QueueEntry, Room, ServiceResult } from '../types'
 
 const today = new Date()
-const isoAt = (hour: number, minute = 0) => new Date(today.getFullYear(), today.getMonth(), today.getDate(), hour, minute).toISOString()
+const isoAt = (hour: number, minute = 0, dayOffset = 0) => new Date(today.getFullYear(), today.getMonth(), today.getDate() + dayOffset, hour, minute).toISOString()
 
-export const peakForecasts: PeakHourForecast[] = Array.from({ length: 20 }, (_, slot) => {
+export const peakForecasts: PeakHourForecast[] = Array.from({ length: 7 * 20 }, (_, index) => {
+  const dayOffset = Math.floor(index / 20)
+  const slot = index % 20
   const hour = 7 + Math.floor(slot / 2)
   const minute = slot % 2 ? 30 : 0
-  const morning = 14 + 55 * Math.exp(-Math.pow(slot - 4, 2) / 8)
-  const afternoon = 28 * Math.exp(-Math.pow(slot - 14, 2) / 10)
+  const dayPressure = [1, 1.12, 0.92, 1.18, 0.86, 0.72, 0.65][dayOffset] ?? 1
+  const morning = (14 + 55 * Math.exp(-Math.pow(slot - 4, 2) / 8)) * dayPressure
+  const afternoon = 28 * Math.exp(-Math.pow(slot - 14, 2) / 10) * dayPressure
   const count = Math.round(morning + afternoon)
   const level = count >= 58 ? 'very_high' : count >= 45 ? 'high' : count >= 29 ? 'normal' : 'low'
-  return { checkin_time: isoAt(hour, minute), slot_index: slot, predicted_checkin_count: count, is_peak: count >= 45, peak_level: level }
+  return { checkin_time: isoAt(hour, minute, dayOffset), slot_index: slot, predicted_checkin_count: count, is_peak: count >= 45, peak_level: level }
 })
 
 export const notifications: Notification[] = [
@@ -39,10 +42,10 @@ export const pathway: PatientPathway = {
 const names = ['Nguyễn Văn Nam', 'Trần Thị Lan', 'Lê Minh Tuấn', 'Phạm Ngọc Anh', 'Vũ Hoàng Long', 'Đỗ Thu Hà', 'Bùi Gia Huy', 'Ngô Thảo Vy']
 const priorities = ['EMERGENCY', 'URGENT', 'HIGH', 'NORMAL', 'LOW'] as const
 export const queue: QueueEntry[] = names.map((name, index) => ({
-  visitId: `VIS-${100 + index}`, queueNumber: `A${String(31 + index).padStart(3, '0')}`, patientName: name, age: 24 + index * 5,
+  queueEntryId: `MOCK-QE-${index + 1}`, visitId: `VIS-${100 + index}`, queueNumber: `A${String(31 + index).padStart(3, '0')}`, patientName: name, age: 24 + index * 5,
   mainSymptom: ['Khó thở, tức ngực', 'Đau bụng', 'Sốt cao', 'Đau đầu', 'Ho kéo dài'][index % 5] ?? 'Mệt mỏi',
   priority: priorities[Math.min(index, 4)] ?? 'NORMAL', waitedMinutes: 42 - index * 4,
-  status: index === 0 ? 'CALLED' : 'WAITING', department: 'Nội tổng hợp', room: '201',
+  status: index === 0 ? 'CALLED' : 'WAITING', queueStatus: index === 0 ? 'CALLED' : 'WAITING', department: 'Nội tổng hợp', room: '201',
 }))
 
 export const liveVisits: PatientVisit[] = queue.map((item, index) => ({
@@ -70,3 +73,4 @@ export const serviceResults: ServiceResult[] = [
   { id: 'rs2', serviceName: 'Sinh hóa máu', status: 'PROCESSING', estimatedAt: new Date(Date.now() + 25 * 60_000).toISOString(), doctorConfirmed: false },
   { id: 'rs3', serviceName: 'X-quang ngực', status: 'PENDING', estimatedAt: new Date(Date.now() + 55 * 60_000).toISOString(), doctorConfirmed: false },
 ]
+

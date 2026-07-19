@@ -1,8 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { Activity, ChevronRight, Clock3, DoorOpen, MoreHorizontal, Pause, Play, Search, Stethoscope, UserRound, Users } from 'lucide-react'
+import { Activity, Clock3, MoreHorizontal, Pause, Play, Search, UserRound, Users } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
-import { Link } from 'react-router-dom'
 import { doctorApi } from '../../api/doctorApi'
 import { LoadingSkeleton } from '../../components/common/LoadingSkeleton'
 import { PageHeader } from '../../components/common/PageHeader'
@@ -24,7 +23,7 @@ export function DoctorQueuePage() {
     () => queueItems.filter((item) => `${item.patientName} ${item.queueNumber} ${item.mainSymptom}`.toLowerCase().includes(search.toLowerCase())),
     [queueItems, search],
   )
-  const current = filtered.find((item) => item.status === 'IN_EXAMINATION') ?? filtered[0]
+  const current = filtered.find((item) => item.queueStatus === 'IN_SERVICE' || item.status === 'IN_EXAMINATION') ?? filtered[0]
 
   return <>
     <PageHeader
@@ -78,10 +77,6 @@ export function DoctorQueuePage() {
               <Detail label="Mức ưu tiên" value={current.priority}/>
               <Detail label="Đã chờ" value={`${current.waitedMinutes} phút`}/>
             </dl>
-            <div className="mt-5 grid gap-2">
-              <Link to={`/doctor/examination/${current.visitId}`} className="flex items-center justify-center gap-2 rounded-xl bg-[#125f52] px-4 py-3 font-bold text-white"><Stethoscope size={18}/>Mở hồ sơ khám<ChevronRight size={17}/></Link>
-              <Link to={`/doctor/orders/${current.visitId}`} className="flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-3 font-bold text-slate-700"><DoorOpen size={18}/>Chỉ định phòng khám thêm</Link>
-            </div>
           </div>}
         </div>
       </aside>
@@ -96,3 +91,4 @@ function Summary({ icon, label, value }: { icon: React.ReactNode; label: string;
 function Detail({ label, value }: { label: string; value: string }) {
   return <div className="border-b border-slate-100 pb-3 last:border-0"><dt className="text-xs font-semibold uppercase tracking-wider text-slate-400">{label}</dt><dd className="mt-1 font-semibold leading-6 text-slate-800">{value}</dd></div>
 }
+

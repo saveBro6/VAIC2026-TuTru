@@ -9,9 +9,25 @@ const prioritySchema = z.object({
   priority: z.string().min(1),
 });
 
+const prescriptionSchema = z.object({
+  clinic_specialities: z.array(z.string().min(1)).min(1).optional(),
+  clinicSpecialities: z.array(z.string().min(1)).min(1).optional(),
+}).refine((value) => value.clinic_specialities || value.clinicSpecialities, {
+  message: 'clinic_specialities is required',
+});
+
 const getQueue = async (req, res, next) => {
   try {
     const result = await doctorService.getDoctorQueue(req.auth, req.query.room_id || req.query.roomId);
+    res.json(result);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getClinicalSpecialties = async (req, res, next) => {
+  try {
+    const result = await doctorService.listClinicalSpecialties(req.auth);
     res.json(result);
   } catch (error) {
     next(error);
@@ -23,6 +39,17 @@ const updateQueueStatus = async (req, res, next) => {
     const body = queueStatusSchema.parse(req.body);
     const result = await doctorService.updateQueueEntryStatus(req.auth, req.params.entryId, body.status);
     res.json(result);
+  } catch (error) {
+    if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
+    next(error);
+  }
+};
+
+const prescribeAndStartExam = async (req, res, next) => {
+  try {
+    const body = prescriptionSchema.parse(req.body);
+    const result = await doctorService.prescribeAndStartExam(req.auth, req.params.entryId, body);
+    res.status(202).json(result);
   } catch (error) {
     if (error instanceof z.ZodError) return res.status(400).json({ error: error.errors });
     next(error);
@@ -78,7 +105,9 @@ const createOrders = async (req, res, next) => {
 
 module.exports = {
   getQueue,
+  getClinicalSpecialties,
   updateQueueStatus,
+  prescribeAndStartExam,
   getVisit,
   updatePriority,
   startVisit,

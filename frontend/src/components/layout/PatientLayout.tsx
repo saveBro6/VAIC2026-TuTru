@@ -1,14 +1,13 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { CircleHelp, Hospital, LogOut, Map, Menu, Ticket, X } from 'lucide-react'
+import { CircleHelp, Hospital, LayoutDashboard, LogOut, Map, Menu, X } from 'lucide-react'
 import { useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { cn } from '../../lib/utils'
 
 const navigation = [
-  { to: '/patient', label: 'Lượt khám', icon: Ticket },
+  { to: '/patient', label: 'Tổng quan', icon: LayoutDashboard },
   { to: '/patient/pathway', label: 'Lộ trình', icon: Map },
-  { to: '/patient/routing', label: 'Phòng cần đến', icon: Hospital },
 ]
 
 export const PatientLayout = () => {

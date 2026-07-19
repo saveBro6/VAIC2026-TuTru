@@ -166,6 +166,47 @@ async function getDoctorQueue(auth, roomId) {
   };
 }
 
+async function listClinicalSpecialties(auth) {
+  assertDoctor(auth);
+
+  const specialties = await prisma.clinicalSpecialty.findMany({
+    where: { isActive: true },
+    include: {
+      department: true,
+      rooms: {
+        where: { isActive: true },
+        include: {
+          queues: { where: { isActive: true } },
+        },
+        orderBy: [{ floor: 'asc' }, { name: 'asc' }],
+      },
+    },
+    orderBy: [{ department: { name: 'asc' } }, { name: 'asc' }],
+  });
+
+  return specialties.map((specialty) => {
+    const room = specialty.rooms
+      .slice()
+      .sort(
+        (left, right) =>
+          (left.queues[0]?.estimatedWaitMinutes ?? 0) -
+          (right.queues[0]?.estimatedWaitMinutes ?? 0),
+      )[0];
+
+    return {
+      id: specialty.id,
+      code: specialty.code,
+      name: specialty.name,
+      departmentId: specialty.departmentId,
+      departmentCode: specialty.department.code,
+      departmentName: specialty.department.name,
+      suggestedRoomId: room?.id || null,
+      suggestedRoomName: room?.name || null,
+      estimatedWait: Math.round(room?.queues[0]?.estimatedWaitMinutes ?? 0),
+    };
+  });
+}
+
 async function findQueueEntryForDoctor(auth, entryId) {
   assertDoctor(auth);
 
@@ -206,13 +247,28 @@ async function updateQueueEntryStatus(auth, entryId, status) {
 
   const current = await findQueueEntryForDoctor(auth, entryId);
   const now = new Date();
-  const entryData = { status };
-  const taskData = { status: QUEUE_STATUS_TO_TASK_STATUS[status] };
+  const entryData = {
+    status,
+    calledAt: null,
+    serviceStartAt: null,
+    serviceEndAt: null,
+    cancelledAt: null,
+  };
+  const taskData = {
+    status: QUEUE_STATUS_TO_TASK_STATUS[status],
+    serviceStart: null,
+    serviceEnd: null,
+    completedAt: null,
+    cancelledAt: null,
+    noShow: false,
+  };
 
-  if (status === 'CALLED') entryData.calledAt = now;
-  if (status === 'IN_SERVICE') {
-    entryData.serviceStartAt = now;
-    taskData.serviceStart = now;
+  if (['CALLED', 'IN_SERVICE', 'DONE', 'CANCELLED', 'NO_SHOW'].includes(status)) {
+    entryData.calledAt = current.calledAt || now;
+  }
+  if (['IN_SERVICE', 'DONE'].includes(status)) {
+    entryData.serviceStartAt = current.serviceStartAt || now;
+    taskData.serviceStart = current.task.serviceStart || now;
   }
   if (status === 'DONE') {
     entryData.serviceEndAt = now;
@@ -222,7 +278,7 @@ async function updateQueueEntryStatus(auth, entryId, status) {
   if (status === 'CANCELLED' || status === 'NO_SHOW') {
     entryData.cancelledAt = now;
     taskData.cancelledAt = now;
-    if (status === 'NO_SHOW') taskData.noShow = true;
+    taskData.noShow = status === 'NO_SHOW';
   }
 
   await prisma.patientQueueEntry.update({ where: { id: entryId }, data: entryData });
@@ -240,6 +296,68 @@ async function updateQueueEntryStatus(auth, entryId, status) {
   return {
     entry: mapQueueEntry(updated),
     nextActivation,
+  };
+}
+
+function buildPrescriptionOrders({ specialties, priority }) {
+  return specialties.map((specialty) => ({
+    specialty_id: specialty,
+    priority,
+    service_type: 'CLINICAL_CONSULT',
+    task_type: 'DIAGNOSTIC_SERVICE',
+    journey_step: 'DIAGNOSTIC_SERVICE',
+  }));
+}
+
+function queuePrescriptionJob({ jobId, journeyId, patientName, orders }) {
+  globalThis.setTimeout(() => {
+    routingService
+      .addJourneyTasks({ journeyId, orders, activateWhileActive: true })
+      .then(() => {
+        console.info(`[doctor-prescription] Completed background prescription job ${jobId}`);
+      })
+      .catch((error) => {
+        console.error(
+          `[doctor-prescription] Failed to process background prescription job ${jobId} for ${patientName}:`,
+          error,
+        );
+      });
+  }, 0);
+}
+
+async function prescribeAndStartExam(auth, entryId, payload) {
+  const current = await findQueueEntryForDoctor(auth, entryId);
+  const specialties = Array.from(
+    new Set((payload.clinic_specialities || payload.clinicSpecialities || []).filter(Boolean)),
+  );
+
+  if (specialties.length === 0) {
+    throw new AppError('At least one clinical specialty is required', 400, 'MISSING_SPECIALTIES');
+  }
+
+  const statusUpdate = await updateQueueEntryStatus(auth, entryId, 'IN_SERVICE');
+  const jobId = `PRESC-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const priority = current.task.clinicalPriority || current.priority || 'NORMAL';
+  const orders = buildPrescriptionOrders({ specialties, priority });
+
+  queuePrescriptionJob({
+    jobId,
+    journeyId: current.task.journeyId,
+    patientName: current.task.patient.fullName || current.task.patientToken,
+    orders,
+  });
+
+  return {
+    accepted: true,
+    background: {
+      jobId,
+      status: 'QUEUED',
+      message: 'Prescription tasks will be created and optimized in the background',
+    },
+    visitId: current.task.journeyId,
+    queueEntryId: entryId,
+    selectedSpecialties: specialties,
+    entry: statusUpdate.entry,
   };
 }
 
@@ -359,7 +477,9 @@ async function createOrders(auth, journeyId, payload) {
 
 module.exports = {
   getDoctorQueue,
+  listClinicalSpecialties,
   updateQueueEntryStatus,
+  prescribeAndStartExam,
   getDoctorVisit,
   updateJourneyPriority,
   startVisit,

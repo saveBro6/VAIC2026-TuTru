@@ -147,9 +147,56 @@ async function findRoomTarget(roomId) {
   };
 }
 
+async function findSpecialtyTarget(specialtyValue) {
+  const specialty = await prisma.clinicalSpecialty.findFirst({
+    where: {
+      isActive: true,
+      OR: [{ id: specialtyValue }, { code: specialtyValue }, { name: specialtyValue }],
+    },
+    include: {
+      department: true,
+      rooms: {
+        where: { isActive: true },
+        include: {
+          queues: { where: { isActive: true } },
+          doctor: true,
+        },
+      },
+    },
+  });
+
+  if (!specialty) {
+    const error = new Error(`Clinical specialty not found or inactive: ${specialtyValue}`);
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const room = specialty.rooms
+    .slice()
+    .sort(
+      (left, right) =>
+        (left.queues[0]?.estimatedWaitMinutes ?? 0) - (right.queues[0]?.estimatedWaitMinutes ?? 0),
+    )[0];
+
+  return {
+    department: specialty.department,
+    specialty,
+    room: room || null,
+  };
+}
+
 async function findRoutingTarget(input) {
   const roomId = input.room_id || input.roomId || input.room;
   if (roomId) return findRoomTarget(roomId);
+
+  const specialtyId =
+    input.specialty_id ||
+    input.specialtyId ||
+    input.clinic_specialty ||
+    input.clinicSpecialty ||
+    input.clinic_speciality ||
+    input.clinicSpeciality;
+  if (specialtyId) return findSpecialtyTarget(specialtyId);
 
   const departmentCode =
     input.department_code ||
@@ -358,9 +405,9 @@ async function enqueueTask(taskId) {
   return entry;
 }
 
-async function activateNextTask({ journeyId, patientToken }) {
+async function activateNextTask({ journeyId, patientToken, allowConcurrentActive = false }) {
   const activeEntry = await getActiveJourneyQueueEntry(journeyId);
-  if (activeEntry) {
+  if (activeEntry && !allowConcurrentActive) {
     return { activated: false, reason: 'ACTIVE_QUEUE_EXISTS', entry: activeEntry };
   }
 
@@ -734,7 +781,7 @@ async function createJourneyAndOptimize(payload) {
   };
 }
 
-async function addJourneyTasks({ journeyId, orders }) {
+async function addJourneyTasks({ journeyId, orders, activateWhileActive = false }) {
   const journey = await prisma.patientJourney.findUnique({
     where: { id: journeyId },
     include: {
@@ -805,10 +852,14 @@ async function addJourneyTasks({ journeyId, orders }) {
     createdTasks.push(task);
   }
 
-  const activeEntry = await getActiveJourneyQueueEntry(journeyId);
+  const activeEntry = activateWhileActive ? null : await getActiveJourneyQueueEntry(journeyId);
   const activation = activeEntry
     ? { activated: false, reason: 'ACTIVE_QUEUE_EXISTS', entry: activeEntry }
-    : await activateNextTask({ journeyId, patientToken: journey.patientToken });
+    : await activateNextTask({
+      journeyId,
+      patientToken: journey.patientToken,
+      allowConcurrentActive: activateWhileActive,
+    });
 
   return {
     journey_id: journeyId,

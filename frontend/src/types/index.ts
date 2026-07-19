@@ -17,6 +17,7 @@ export interface AIRecommendation { department: string; departmentCode?: string;
 export interface PathwayStep { id: string; title: string; department: string; room: string; doctor?: string; status: StepStatus; estimatedWait: number; estimatedStart: string; actualTime?: string; directions: string }
 export interface PatientPathway { visitId: string; visitStatus: VisitStatus; queueNumber: string; currentRoom: string; peopleAhead: number; estimatedWait: number; steps: PathwayStep[] }
 export interface DoctorClinicRoom { id: string; code?: string | null; name: string; floor?: string | null; department: string; specialty: string; waitingCount: number; estimatedWait: number }
+export interface ClinicalSpecialtyOption { id: string; code?: string | null; name: string; departmentId: string; departmentCode?: string | null; departmentName: string; suggestedRoomId?: string | null; suggestedRoomName?: string | null; estimatedWait: number }
 export interface QueueEntry { queueEntryId?: string; taskId?: string; visitId: string; queueNumber: string; patientName: string; age: number; mainSymptom: string; priority: Priority; waitedMinutes: number; status: VisitStatus; queueStatus?: QueueEntryStatus; department: string; room: string }
 export interface DoctorQueueResponse { rooms: DoctorClinicRoom[]; selectedRoom: DoctorClinicRoom | null; queue: QueueEntry[] }
 export interface ServiceOrder { id: string; type: string; targetDepartment: string; priority: Priority; clinicalNote: string; specialRequest?: string; room?: string; status: string }

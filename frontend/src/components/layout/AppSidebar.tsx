@@ -1,7 +1,53 @@
-import { Activity, Bed, ClipboardList, Hospital, LayoutDashboard, LifeBuoy, ShieldCheck, Stethoscope, UserPlus, UserRound, Users, X } from 'lucide-react'
+import { Activity, Bed, Hospital, LayoutDashboard, LifeBuoy, ShieldCheck, UserPlus, UserRound, Users, X } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
-import type { UserRole } from '../../types'
 import { cn } from '../../lib/utils'
-const menus = { PATIENT: [{ to: '/patient', label: 'Lượt khám của tôi', icon: LayoutDashboard }, { to: '/patient/pathway', label: 'Lộ trình cần đi', icon: Activity }, { to: '/patient/routing', label: 'Phòng cần đến', icon: ClipboardList }], DOCTOR: [{ to: '/doctor/intake', label: 'Tiếp nhận bệnh nhân', icon: UserPlus }, { to: '/doctor/queue', label: 'Quản lý phòng & hàng đợi', icon: Users }, { to: '/doctor/examination/VIS-100', label: 'Bệnh nhân đang khám', icon: Stethoscope }, { to: '/doctor/orders/VIS-100', label: 'Chỉ định khám thêm', icon: ClipboardList }], ADMIN: [{ to: '/admin', label: 'Tổng quan vận hành', icon: LayoutDashboard }, { to: '/admin/live-visits', label: 'Bệnh nhân hiện tại', icon: Users }, { to: '/admin/rooms', label: 'Quản lý phòng', icon: Bed }, { to: '/admin/doctors', label: 'Quản lý nhân viên', icon: UserRound }] }
-const roleName = { PATIENT: 'Cổng bệnh nhân', DOCTOR: 'Không gian bác sĩ', ADMIN: 'Trung tâm vận hành' }
-export function AppSidebar({ role, open, onClose }: { role: UserRole; open: boolean; onClose: () => void }) { return <><div className={cn('fixed inset-0 z-40 bg-slate-950/45 lg:hidden', open ? 'block' : 'hidden')} onClick={onClose}/><aside className={cn('fixed inset-y-0 left-0 z-50 w-[276px] border-r border-[#28465e] bg-[#17324d] text-white shadow-xl transition-transform lg:translate-x-0', open ? 'translate-x-0' : '-translate-x-full')}><div className="flex h-[88px] items-center justify-between border-b border-white/10 px-6"><div className="flex items-center gap-3"><div className="grid h-11 w-11 place-items-center rounded-lg bg-[#ea7a50] text-white"><Hospital/></div><strong className="text-lg tracking-tight">Bệnh viện An Tâm</strong></div><button className="rounded-lg p-2 lg:hidden" onClick={onClose}><X/></button></div><div className="mx-4 mt-5 rounded-lg border border-white/10 bg-white/[.06] p-3"><p className="text-[10px] font-bold uppercase tracking-[.14em] text-sky-200">Không gian làm việc</p><p className="mt-1 flex items-center gap-2 text-sm font-semibold text-white"><ShieldCheck size={15} className="text-[#f29a78]"/>{roleName[role]}</p></div><nav className="mt-5 space-y-1.5 px-3">{menus[role].map(({ to, label, icon: Icon }) => <NavLink key={to} end={to.split('/').length === 2} to={to} onClick={onClose} className={({ isActive }) => cn('group flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-semibold transition-all', isActive ? 'bg-white text-[#17324d]' : 'text-slate-300 hover:bg-white/10 hover:text-white')}><Icon size={19}/>{label}</NavLink>)}</nav><div className="absolute bottom-5 left-4 right-4 rounded-lg border border-white/10 bg-white/[.05] p-4"><div className="flex items-center gap-2 text-sm font-semibold"><LifeBuoy size={17} className="text-[#f29a78]"/>Cần hỗ trợ?</div><p className="mt-2 text-xs leading-5 text-slate-300">Hotline 1900 1234<br/>Khẩn cấp y tế gọi 115</p></div></aside></> }
+import type { UserRole } from '../../types'
+
+const menus = {
+  PATIENT: [
+    { to: '/patient', label: 'Tổng quan', icon: LayoutDashboard },
+    { to: '/patient/pathway', label: 'Lộ trình cần đi', icon: Activity },
+  ],
+  DOCTOR: [
+    { to: '/doctor/intake', label: 'Tiếp nhận bệnh nhân', icon: UserPlus },
+    { to: '/doctor/queue', label: 'Quản lý phòng & hàng đợi', icon: Users },
+  ],
+  ADMIN: [
+    { to: '/admin', label: 'Tổng quan vận hành', icon: LayoutDashboard },
+    { to: '/admin/live-visits', label: 'Bệnh nhân hiện tại', icon: Users },
+    { to: '/admin/rooms', label: 'Quản lý phòng', icon: Bed },
+    { to: '/admin/doctors', label: 'Quản lý nhân viên', icon: UserRound },
+  ],
+}
+
+const roleName = {
+  PATIENT: 'Cổng bệnh nhân',
+  DOCTOR: 'Không gian bác sĩ',
+  ADMIN: 'Trung tâm vận hành',
+}
+
+export function AppSidebar({ role, open, onClose }: { role: UserRole; open: boolean; onClose: () => void }) {
+  return <>
+    <div className={cn('fixed inset-0 z-40 bg-slate-950/45 lg:hidden', open ? 'block' : 'hidden')} onClick={onClose}/>
+    <aside className={cn('fixed inset-y-0 left-0 z-50 w-[276px] border-r border-[#28465e] bg-[#17324d] text-white shadow-xl transition-transform lg:translate-x-0', open ? 'translate-x-0' : '-translate-x-full')}>
+      <div className="flex h-[88px] items-center justify-between border-b border-white/10 px-6">
+        <div className="flex items-center gap-3">
+          <div className="grid h-11 w-11 place-items-center rounded-lg bg-[#ea7a50] text-white"><Hospital/></div>
+          <strong className="text-lg tracking-tight">Bệnh viện An Tâm</strong>
+        </div>
+        <button className="rounded-lg p-2 lg:hidden" onClick={onClose}><X/></button>
+      </div>
+      <div className="mx-4 mt-5 rounded-lg border border-white/10 bg-white/[.06] p-3">
+        <p className="text-[10px] font-bold uppercase tracking-[.14em] text-sky-200">Không gian làm việc</p>
+        <p className="mt-1 flex items-center gap-2 text-sm font-semibold text-white"><ShieldCheck size={15} className="text-[#f29a78]"/>{roleName[role]}</p>
+      </div>
+      <nav className="mt-5 space-y-1.5 px-3">
+        {menus[role].map(({ to, label, icon: Icon }) => <NavLink key={to} end={to.split('/').length === 2} to={to} onClick={onClose} className={({ isActive }) => cn('group flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-semibold transition-all', isActive ? 'bg-white text-[#17324d]' : 'text-slate-300 hover:bg-white/10 hover:text-white')}><Icon size={19}/>{label}</NavLink>)}
+      </nav>
+      <div className="absolute bottom-5 left-4 right-4 rounded-lg border border-white/10 bg-white/[.05] p-4">
+        <div className="flex items-center gap-2 text-sm font-semibold"><LifeBuoy size={17} className="text-[#f29a78]"/>Cần hỗ trợ?</div>
+        <p className="mt-2 text-xs leading-5 text-slate-300">Hotline 1900 1234<br/>Khẩn cấp y tế gọi 115</p>
+      </div>
+    </aside>
+  </>
+}
