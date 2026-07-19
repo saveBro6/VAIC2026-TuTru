@@ -16,9 +16,9 @@ class Settings(BaseSettings):
     port: int = 8001
     confidence_threshold: float = 0.45
     top_k_default: int = 3
-    model_path: str = "models/clinic_room_router.joblib"
-    metadata_path: str = "models/model_metadata.json"
-    departments_path: str = "data/departments.csv"
+    process_input_model_path: str = "models/clinic_room_router.joblib"
+    process_input_metadata_path: str = "models/model_metadata.json"
+    process_input_departments_path: str = "data/departments.csv"
 
     model_config = SettingsConfigDict(
         env_file=PROJECT_ROOT / ".env",
@@ -28,15 +28,15 @@ class Settings(BaseSettings):
 
     @property
     def model_file(self) -> Path:
-        return PROJECT_ROOT / self.model_path
+        return PROJECT_ROOT / self.process_input_model_path
 
     @property
     def metadata_file(self) -> Path:
-        return PROJECT_ROOT / self.metadata_path
+        return PROJECT_ROOT / self.process_input_metadata_path
 
     @property
     def departments_file(self) -> Path:
-        return PROJECT_ROOT / self.departments_path
+        return PROJECT_ROOT / self.process_input_departments_path
 
 
 @lru_cache
