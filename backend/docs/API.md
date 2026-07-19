@@ -29,7 +29,7 @@ Request:
 
 ```json
 {
-  "cccd": "001204012345"
+  "cccd": "000000000001"
 }
 ```
 
@@ -41,9 +41,9 @@ Response:
   "token_type": "Bearer",
   "user": {
     "id": "<patient-id>",
-    "full_name": "Benh nhan 001204012345",
+    "full_name": "Benh nhan 000000000001",
     "role": "PATIENT",
-    "cccd": "001204012345",
+    "cccd": "000000000001",
     "patient_token": "<patient-token>"
   }
 }

@@ -11,7 +11,7 @@ type LoginMode = "patient" | "staff";
 export function LoginPage() {
   const { user, login, staffLogin, isAuthenticated } = useAuth();
   const [mode, setMode] = useState<LoginMode>("patient");
-  const [cccd, setCccd] = useState("001204012345");
+  const [cccd, setCccd] = useState("000000000001");
   const [userName, setUserName] = useState("");
   const [password, setPassword] = useState("");
   const cccdValid = /^\d{9,12}$/.test(cccd);
