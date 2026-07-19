@@ -1,4 +1,4 @@
-# MedFlow Frontend
+# HoraAi Frontend
 
 Frontend điều phối bệnh nhân thông minh cho ba vai trò: bệnh nhân, bác sĩ và quản trị viên.
 
