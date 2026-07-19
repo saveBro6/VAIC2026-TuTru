@@ -7,6 +7,7 @@ export const patientApi = {
   getNotifications: async (): Promise<Notification[]> => mockDelay(notifications),
   checkin: async (payload: object): Promise<{ visitId: string; queueNumber: string }> => USE_MOCK_API ? mockDelay({ visitId: 'VIS-260718-042', queueNumber: 'A042' }, 650) : (await axiosClient.post('/checkins', payload)).data,
   submitSymptoms: async (visitId: string, payload: SymptomReport): Promise<void> => { if (USE_MOCK_API) return mockDelay(undefined, 500); await axiosClient.post(`/visits/${visitId}/symptoms`, payload) },
+  getCurrentPathway: async (): Promise<PatientPathway> => USE_MOCK_API ? mockDelay(pathway) : (await axiosClient.get<PatientPathway>('/visits/current/pathway')).data,
   getPathway: async (visitId: string): Promise<PatientPathway> => USE_MOCK_API ? mockDelay({ ...pathway, visitId }) : (await axiosClient.get<PatientPathway>(`/visits/${visitId}/pathway`)).data,
   getResults: async (visitId: string): Promise<ServiceResult[]> => USE_MOCK_API ? mockDelay(serviceResults) : (await axiosClient.get<ServiceResult[]>(`/visits/${visitId}/results`)).data,
 }

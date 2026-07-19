@@ -1,5 +1,5 @@
 import { pathway, queue, routingRecommendation } from '../mocks/data'
-import type { AIRecommendation, PatientPathway, Priority, QueueEntry, ServiceOrder } from '../types'
+import type { AIRecommendation, DoctorQueueResponse, PatientPathway, Priority, QueueEntry, QueueEntryStatus, ServiceOrder } from '../types'
 import axiosClient, { mockDelay, USE_MOCK_API } from './axiosClient'
 
 export interface CreateOptimizedJourneyPayload {
@@ -22,11 +22,23 @@ export interface CreateOptimizedJourneyResponse {
 }
 
 export const doctorApi = {
-  getQueue: async (): Promise<QueueEntry[]> => USE_MOCK_API ? mockDelay(queue) : (await axiosClient.get<QueueEntry[]>('/doctor/queue')).data,
+  getQueue: async (roomId?: string): Promise<DoctorQueueResponse> => {
+    if (USE_MOCK_API) {
+      const mockQueue = queue.map((item, index) => ({ ...item, queueEntryId: item.queueEntryId ?? `MOCK-QE-${index + 1}` }))
+      return mockDelay({
+        rooms: [{ id: 'MOCK-ROOM-1', name: 'Phòng khám Nội 201', floor: '2', department: 'Nội tổng hợp', specialty: 'Nội tổng hợp', waitingCount: mockQueue.length, estimatedWait: 18 }],
+        selectedRoom: { id: 'MOCK-ROOM-1', name: 'Phòng khám Nội 201', floor: '2', department: 'Nội tổng hợp', specialty: 'Nội tổng hợp', waitingCount: mockQueue.length, estimatedWait: 18 },
+        queue: mockQueue,
+      })
+    }
+
+    return (await axiosClient.get<DoctorQueueResponse>('/doctor/queue', { params: { room_id: roomId } })).data
+  },
   getVisit: async (visitId: string): Promise<{ queue: QueueEntry; pathway: PatientPathway; recommendation: AIRecommendation }> => USE_MOCK_API ? mockDelay({ queue: queue.find((q) => q.visitId === visitId) ?? queue[0]!, pathway, recommendation: routingRecommendation }) : (await axiosClient.get(`/doctor/visits/${visitId}`)).data,
   updatePriority: async (visitId: string, priority: Priority) => USE_MOCK_API ? mockDelay({ visitId, priority }) : (await axiosClient.patch(`/doctor/visits/${visitId}/priority`, { priority })).data,
   startVisit: async (visitId: string) => USE_MOCK_API ? mockDelay({ visitId, status: 'IN_EXAMINATION' }) : (await axiosClient.post(`/doctor/visits/${visitId}/start`)).data,
   createOrder: async (visitId: string, order: Omit<ServiceOrder, 'id' | 'status'>) => USE_MOCK_API ? mockDelay({ ...order, id: `ORD-${Date.now()}`, status: 'PENDING' }) : (await axiosClient.post(`/doctor/visits/${visitId}/orders`, order)).data,
+  updateQueueStatus: async (queueEntryId: string, status: QueueEntryStatus) => USE_MOCK_API ? mockDelay({ entry: { queueEntryId, status } }) : (await axiosClient.patch(`/doctor/queue/${queueEntryId}/status`, { status })).data,
   createOptimizedJourney: async (payload: CreateOptimizedJourneyPayload): Promise<CreateOptimizedJourneyResponse> => {
     if (USE_MOCK_API) {
       const visitId = `J-${Date.now()}`

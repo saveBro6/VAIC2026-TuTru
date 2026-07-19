@@ -2,6 +2,7 @@ export type UserRole = 'PATIENT' | 'DOCTOR' | 'ADMIN'
 export type Priority = 'EMERGENCY' | 'URGENT' | 'HIGH' | 'NORMAL' | 'LOW'
 export type VisitStatus = 'CHECKED_IN' | 'SYMPTOM_SUBMITTED' | 'WAITING_TRIAGE' | 'ROUTED' | 'WAITING' | 'CALLED' | 'IN_EXAMINATION' | 'WAITING_SERVICE' | 'IN_SERVICE' | 'WAITING_RESULT' | 'RESULT_READY' | 'COMPLETED' | 'CANCELLED'
 export type StepStatus = 'PENDING' | 'WAITING' | 'CALLED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
+export type QueueEntryStatus = 'WAITING' | 'CALLED' | 'IN_SERVICE' | 'DONE' | 'CANCELLED' | 'NO_SHOW'
 export type PeakLevel = 'low' | 'normal' | 'high' | 'very_high'
 
 export interface User { id: string; full_name: string; role: UserRole; email?: string; cccd?: string; patient_token?: string; staff_role?: string }
@@ -15,7 +16,9 @@ export interface TriageAssessment { priority: Priority; summary: string; warning
 export interface AIRecommendation { department: string; departmentCode?: string; room: string; floor: number; estimatedWait: number; waitingCount: number; reason: string; confidence: number; priority: Priority; requiresHumanReview?: boolean; isRedFlag?: boolean; alternatives?: { department: string; departmentCode?: string; room: string; confidence: number }[] }
 export interface PathwayStep { id: string; title: string; department: string; room: string; doctor?: string; status: StepStatus; estimatedWait: number; estimatedStart: string; actualTime?: string; directions: string }
 export interface PatientPathway { visitId: string; visitStatus: VisitStatus; queueNumber: string; currentRoom: string; peopleAhead: number; estimatedWait: number; steps: PathwayStep[] }
-export interface QueueEntry { visitId: string; queueNumber: string; patientName: string; age: number; mainSymptom: string; priority: Priority; waitedMinutes: number; status: VisitStatus; department: string; room: string }
+export interface DoctorClinicRoom { id: string; code?: string | null; name: string; floor?: string | null; department: string; specialty: string; waitingCount: number; estimatedWait: number }
+export interface QueueEntry { queueEntryId?: string; taskId?: string; visitId: string; queueNumber: string; patientName: string; age: number; mainSymptom: string; priority: Priority; waitedMinutes: number; status: VisitStatus; queueStatus?: QueueEntryStatus; department: string; room: string }
+export interface DoctorQueueResponse { rooms: DoctorClinicRoom[]; selectedRoom: DoctorClinicRoom | null; queue: QueueEntry[] }
 export interface ServiceOrder { id: string; type: string; targetDepartment: string; priority: Priority; clinicalNote: string; specialRequest?: string; room?: string; status: string }
 export interface ServiceResult { id: string; serviceName: string; status: 'PENDING' | 'PROCESSING' | 'READY'; estimatedAt: string; fileUrl?: string; doctorConfirmed: boolean }
 export interface WaitTimePrediction { roomId: string; minutes: number; confidence: number }

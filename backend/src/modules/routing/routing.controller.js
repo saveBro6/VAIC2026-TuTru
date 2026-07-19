@@ -37,7 +37,6 @@ const optimizeSequence = async (req, res, next) => {
 
     res.json(result);
   } catch (error) {
-    console.log(error)
     if (error instanceof z.ZodError) {
       return res.status(400).json({ error: error.errors });
     }

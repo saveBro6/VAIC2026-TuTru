@@ -56,4 +56,8 @@ def test_full_journey_event_integration():
  for i,(task_id,task_type,event_type) in enumerate(events):
   payload=base|{"event_id":f"e{i}","event_time":(NOW+timedelta(minutes=i)).isoformat(),"task_id":task_id,"task_type":task_type,"event_type":event_type,"queue_id":"Q"}
   assert client.post("/api/v1/events",json=payload).status_code==200
- assert client.get("/api/v1/journeys/journey-e2e/estimate").status_code==200
+ response=client.get("/api/v1/journeys/journey-e2e/estimate")
+ assert response.status_code==200
+ data=response.json()
+ assert data["steps"] and all("estimate_status" in step for step in data["steps"])
+ assert any(step["task_id"]=="review" and step["estimate"] for step in data["steps"])
