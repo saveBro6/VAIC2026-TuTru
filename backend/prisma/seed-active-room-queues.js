@@ -7,6 +7,29 @@ const MIN_ACTIVE_PATIENTS_PER_ROOM = 5;
 const ACTIVE_QUEUE_STATUSES = ['WAITING', 'CALLED', 'IN_SERVICE'];
 const PRIORITIES = ['NORMAL', 'NORMAL', 'NORMAL', 'URGENT', 'NON_URGENT'];
 const BASE_CHECKIN_TIME = new Date('2026-07-19T01:00:00.000Z');
+const PROVINCE_CODES = ['001', '031', '048', '079', '092', '075', '089', '024', '046', '066'];
+const VIETNAMESE_PATIENT_NAMES = [
+  'Nguyễn Văn Minh',
+  'Trần Thị Hương',
+  'Lê Hoàng Anh',
+  'Phạm Thị Thu Hà',
+  'Hoàng Gia Bảo',
+  'Võ Thị Mỹ Linh',
+  'Đặng Quốc Huy',
+  'Bùi Thanh Tùng',
+  'Đỗ Ngọc Anh',
+  'Ngô Minh Khang',
+  'Huỳnh Thảo Nhi',
+  'Phan Đức Long',
+  'Vũ Thị Lan Anh',
+  'Mai Quang Dũng',
+  'Đinh Nhật Nam',
+  'Tạ Phương Uyên',
+  'Cao Minh Đức',
+  'Lý Thanh Trúc',
+  'Hồ Anh Tuấn',
+  'Dương Khánh Vy',
+];
 
 function addMinutes(date, minutes) {
   return new Date(date.getTime() + minutes * 60000);
@@ -19,15 +42,52 @@ function compactId(value) {
     .toUpperCase();
 }
 
+function hashNumber(value) {
+  return [...String(value)].reduce(
+    (total, character) => (total * 31 + character.charCodeAt(0)) % 1000000,
+    0,
+  );
+}
+
+function roomSeedNumber(room, position) {
+  return (hashNumber(room.code || room.id) + position * 7919) % 100000;
+}
+
+function realisticIdentificationCode(room, position, birthYear, genderDigit) {
+  const seed = roomSeedNumber(room, position);
+  const provinceCode = PROVINCE_CODES[seed % PROVINCE_CODES.length];
+  const sequence = String((seed * 37 + position) % 1000000).padStart(6, '0');
+
+  return `${provinceCode}${genderDigit}${String(birthYear).slice(-2)}${sequence}`;
+}
+
+function realisticPhoneNumber(room, position) {
+  const prefixes = ['090', '091', '093', '094', '096', '097', '098', '032', '033', '034'];
+  const seed = roomSeedNumber(room, position);
+  const suffix = String((seed * 53 + position * 17) % 10000000).padStart(7, '0');
+
+  return `${prefixes[seed % prefixes.length]}${suffix}`;
+}
+
 function patientSeedFor(room, position) {
-  const roomCode = compactId(room.code || room.id);
-  const serial = String(position).padStart(2, '0');
+  const seed = roomSeedNumber(room, position);
+  const serial = String(seed).padStart(5, '0');
+  const birthYear = 1965 + (seed % 42);
+  const birthMonth = (seed % 12) + 1;
+  const birthDay = (seed % 27) + 1;
+  const name = VIETNAMESE_PATIENT_NAMES[seed % VIETNAMESE_PATIENT_NAMES.length];
+  const femaleNameEndings = ['Hương', 'Hà', 'Linh', 'Anh', 'Nhi', 'Uyên', 'Trúc', 'Vy'];
+  const genderDigit =
+    name.includes('Thị') || femaleNameEndings.some((part) => name.endsWith(part)) ? 2 : 0;
 
   return {
-    identificationCode: `SEED-${roomCode}-${serial}`,
-    patientToken: `PT-SEED-${roomCode}-${serial}`,
-    fullName: `Seed Patient ${roomCode} ${serial}`,
-    dateOfBirth: new Date(`${1980 + (position % 25)}-01-15T00:00:00.000Z`),
+    identificationCode: realisticIdentificationCode(room, position, birthYear, genderDigit),
+    patientToken: `BN-20260719-${serial}`,
+    fullName: name,
+    phoneNumber: realisticPhoneNumber(room, position),
+    dateOfBirth: new Date(
+      `${birthYear}-${String(birthMonth).padStart(2, '0')}-${String(birthDay).padStart(2, '0')}T00:00:00.000Z`,
+    ),
   };
 }
 
@@ -44,14 +104,14 @@ async function ensureConsultQueue(prisma, room) {
     where: { id },
     create: {
       id,
-      name: `Queue ${room.name}`,
+      name: `Hàng đợi ${room.name}`,
       roomId: room.id,
       serviceType: 'CLINICAL_CONSULT',
       isActive: true,
       estimatedWaitMinutes: 0,
     },
     update: {
-      name: `Queue ${room.name}`,
+      name: `Hàng đợi ${room.name}`,
       roomId: room.id,
       serviceType: 'CLINICAL_CONSULT',
       isActive: true,
@@ -91,7 +151,11 @@ async function activePatientCountForRoom(prisma, roomId) {
       queue: { roomId },
       task: {
         patient: {
-          identificationCode: { not: PROTECTED_IDENTIFICATION_CODE },
+          NOT: [
+            { identificationCode: PROTECTED_IDENTIFICATION_CODE },
+            { identificationCode: { startsWith: 'SEED-' } },
+            { patientToken: { startsWith: 'PT-SEED-' } },
+          ],
         },
       },
     },
@@ -119,6 +183,54 @@ async function patientHasActiveQueue(prisma, patientToken) {
   return Boolean(activeEntry);
 }
 
+async function deactivateLegacySeedData(prisma) {
+  const now = new Date();
+
+  await prisma.patientQueueEntry.updateMany({
+    where: {
+      status: { in: ACTIVE_QUEUE_STATUSES },
+      task: {
+        patient: {
+          OR: [
+            { identificationCode: { startsWith: 'SEED-' } },
+            { patientToken: { startsWith: 'PT-SEED-' } },
+          ],
+        },
+      },
+    },
+    data: {
+      status: 'CANCELLED',
+      cancelledAt: now,
+    },
+  });
+
+  await prisma.patientJourneyTask.updateMany({
+    where: {
+      status: { in: ['PENDING', 'READY', 'IN_QUEUE', 'IN_SERVICE'] },
+      patient: {
+        OR: [
+          { identificationCode: { startsWith: 'SEED-' } },
+          { patientToken: { startsWith: 'PT-SEED-' } },
+        ],
+      },
+    },
+    data: {
+      status: 'CANCELLED',
+      cancelledAt: now,
+    },
+  });
+
+  await prisma.patient.updateMany({
+    where: {
+      OR: [
+        { identificationCode: { startsWith: 'SEED-' } },
+        { patientToken: { startsWith: 'PT-SEED-' } },
+      ],
+    },
+    data: { status: 'INACTIVE' },
+  });
+}
+
 async function seedOnePatientInRoom(prisma, room, queue, positionInRoom) {
   const patientSeed = patientSeedFor(room, positionInRoom);
   const activeAlready = await patientHasActiveQueue(prisma, patientSeed.patientToken);
@@ -140,12 +252,14 @@ async function seedOnePatientInRoom(prisma, room, queue, positionInRoom) {
       identificationCode: patientSeed.identificationCode,
       patientToken: patientSeed.patientToken,
       fullName: patientSeed.fullName,
+      phoneNumber: patientSeed.phoneNumber,
       dateOfBirth: patientSeed.dateOfBirth,
       status: 'ACTIVE',
     },
     update: {
       identificationCode: patientSeed.identificationCode,
       fullName: patientSeed.fullName,
+      phoneNumber: patientSeed.phoneNumber,
       dateOfBirth: patientSeed.dateOfBirth,
       status: 'ACTIVE',
     },
@@ -256,13 +370,15 @@ async function seedOnePatientInRoom(prisma, room, queue, positionInRoom) {
 }
 
 async function seedActiveRoomQueues() {
-  const databaseUrl = process.env.DATABASE_URL;
+  const databaseUrl = 'postgresql://neondb_owner:npg_2JUga9sbVFcz@ep-falling-recipe-awd1tcj2.c-12.us-east-1.aws.neon.tech/neondb?sslmode=verify-full';
   if (!databaseUrl) throw new Error('DATABASE_URL is required to seed active room queues');
 
   const adapter = new PrismaPg({ connectionString: databaseUrl });
   const prisma = new PrismaClient({ adapter });
 
   try {
+    await deactivateLegacySeedData(prisma);
+
     const rooms = await prisma.clinicRoom.findMany({
       where: { isActive: true },
       include: {
